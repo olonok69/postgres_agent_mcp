@@ -1,0 +1,12 @@
+asyncpg
+uvicorn[standard]
+starlette
+python-dotenv
+mcp
+langchain>=0.3.23
+langgraph>=0.3.30
+langchain-openai>=0.2.5
+langchain-core>=0.3.0
+sqlalchemy
+psycopg[binary]
+streamlit
