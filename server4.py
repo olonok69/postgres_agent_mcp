@@ -50,12 +50,17 @@ def _as_text(payload: Any) -> list[TextContent]:
 
 
 def _error_content(exc: Exception) -> list[TextContent]:
-    return _as_text({"error": str(exc)})
+    error_result = {
+        "error": str(exc),
+        "status": "error",
+        "type": type(exc).__name__
+    }
+    return [TextContent(type="text", text=json.dumps(error_result, indent=2))]
 
 
 @mcp.tool()
 async def list_tables(schema_name: Annotated[str | None, Field(alias="schema")] = None) -> list[TextContent]:
-    """List Postgres tables. Optionally filter by schema."""
+    """List all tables in the database. Optionally filter by schema name."""
     try:
         payload = await db.list_tables(schema_name)
         return _as_text(payload)
@@ -69,7 +74,12 @@ async def describe_table(
     table_name: str,
     schema_name: Annotated[str | None, Field(alias="schema")] = None,
 ) -> list[TextContent]:
-    """Describe columns and row count for a table."""
+    """Get detailed information about a table including columns, data types, constraints, and row count.
+    
+    Args:
+        table_name: Name of the table to describe (can include schema like 'public.actor')
+        schema_name: Optional schema name if not included in table_name
+    """
     try:
         payload = await db.describe_table(table_name, schema_name)
         return _as_text(payload)
@@ -84,7 +94,13 @@ async def get_table_sample(
     limit: int = 5,
     schema_name: Annotated[str | None, Field(alias="schema")] = None,
 ) -> list[TextContent]:
-    """Return a sample of rows from a table (max 1000)."""
+    """Get a sample of records from a specific table (maximum 1000 rows).
+    
+    Args:
+        table_name: Name of the table to sample (can include schema like 'public.actor')
+        limit: Number of rows to return (1-1000, default 5)
+        schema_name: Optional schema name if not included in table_name
+    """
     try:
         payload = await db.get_table_sample(table_name, limit, schema_name)
         return _as_text(payload)
@@ -95,7 +111,11 @@ async def get_table_sample(
 
 @mcp.tool()
 async def execute_sql(query: str) -> list[TextContent]:
-    """Execute arbitrary SQL against Postgres."""
+    """Execute an SQL query on the PostgreSQL database. Supports SELECT, INSERT, UPDATE, DELETE, and other SQL commands.
+    
+    Args:
+        query: The SQL query to execute
+    """
     try:
         payload = await db.execute_sql(query)
         return _as_text(payload)

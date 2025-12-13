@@ -1,11 +1,24 @@
 import asyncio
+import json
 import os
+import logging
 from typing import Any, Dict, List, Optional
 
 import asyncpg
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Set up logging to file
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('agent_activity.log', mode='a'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger('db')
 
 _pool: Optional[asyncpg.Pool] = None
 _pool_loop: Optional[asyncio.AbstractEventLoop] = None
@@ -71,6 +84,8 @@ async def close_pool() -> None:
 
 
 async def list_tables(schema: Optional[str] = None) -> Dict[str, Any]:
+    logger.info(f"DB call: list_tables with schema={schema}")
+    
     pool = await get_pool()
     query = """
         SELECT table_schema, table_name
@@ -95,11 +110,22 @@ async def list_tables(schema: Optional[str] = None) -> Dict[str, Any]:
         }
         for row in rows
     ]
-    return {"total_tables": len(tables), "tables": tables}
+    result = {"total_tables": len(tables), "tables": tables}
+    logger.info(f"DB result: list_tables returned {json.dumps(result, indent=2)}")
+    return result
 
 
 async def describe_table(table_name: str, schema: Optional[str] = None) -> Dict[str, Any]:
+    logger.info(f"DB call: describe_table with table_name={table_name}, schema={schema}")
+    
     pool = await get_pool()
+    
+    # Parse schema-qualified table name if schema not provided
+    if schema is None and '.' in table_name:
+        parts = table_name.split('.', 1)
+        if len(parts) == 2:
+            schema, table_name = parts
+    
     qualified = table_name if schema is None else f"{schema}.{table_name}"
     column_query = """
         SELECT
@@ -138,12 +164,14 @@ async def describe_table(table_name: str, schema: Optional[str] = None) -> Dict[
         for row in columns_raw
     ]
 
-    return {
+    result = {
         "table_name": qualified,
         "row_count": int(row_count or 0),
         "columns": columns,
         "total_columns": len(columns),
     }
+    logger.info(f"DB result: describe_table returned {json.dumps(result, indent=2)}")
+    return result
 
 
 def _serialize_value(value: Any) -> Any:
@@ -157,7 +185,16 @@ def _serialize_value(value: Any) -> Any:
 
 
 async def get_table_sample(table_name: str, limit: int = 5, schema: Optional[str] = None) -> Dict[str, Any]:
+    logger.info(f"DB call: get_table_sample with table_name={table_name}, limit={limit}, schema={schema}")
+    
     pool = await get_pool()
+    
+    # Parse schema-qualified table name if schema not provided
+    if schema is None and '.' in table_name:
+        parts = table_name.split('.', 1)
+        if len(parts) == 2:
+            schema, table_name = parts
+    
     limit = max(1, min(limit, 1000))
     qualified = table_name if schema is None else f"{schema}.{table_name}"
     query = f"SELECT * FROM {qualified} LIMIT {limit}"
@@ -171,13 +208,15 @@ async def get_table_sample(table_name: str, limit: int = 5, schema: Optional[str
         for row in rows
     ]
 
-    return {
+    result = {
         "table_name": qualified,
         "sample_size": limit,
         "columns": columns,
         "rows": data,
         "actual_count": len(data),
     }
+    logger.info(f"DB result: get_table_sample returned {json.dumps(result, indent=2)}")
+    return result
 
 
 async def execute_sql(query: str) -> Dict[str, Any]:
