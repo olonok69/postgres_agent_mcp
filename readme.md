@@ -246,6 +246,27 @@ The diagram shows the four-layer architecture:
 
 Data flows from user input through agent selection, tool execution, and database operations, with responses flowing back up through the layers.
 
+## 📡 Streamable HTTP vs SSE
+
+Streamable HTTP is a response pattern that keeps the plain HTTP request/response model but streams chunks as soon as they are ready. It typically uses `Transfer-Encoding: chunked` (or HTTP/2 data frames) to deliver partial payloads plus a final summary without switching protocols.
+
+### Why it often beats SSE
+- Works over standard HTTP stacks (CDNs, proxies, load balancers) without requiring `text/event-stream` upgrades.
+- Carries binary or mixed payloads (JSON, embeddings, files) without SSE’s text-only framing.
+- Better fits multi-part responses: early tokens first, structured metadata or cost stats at the end.
+- Simple client handling: any HTTP client that supports streaming bodies can consume it; no event parsing needed.
+
+### Where SSE can still win
+- Built-in retry semantics with `Last-Event-ID` if you need automatic reconnection.
+- Very lightweight for tiny, text-only event feeds.
+- Broad browser support with `EventSource` when you don’t control clients.
+
+### Practical guidance
+- Use streamable HTTP when you need end-to-end compatibility through proxies/CDNs, binary frames, or structured multi-part outputs (e.g., deltas + final JSON summary) while staying on vanilla HTTP.
+- Stick with SSE for simple, text-only live updates where `EventSource` is sufficient and reconnect logic matters more than payload flexibility.
+
+Reference: comparison and benchmarks in [Medium: Streamable HTTP vs SSE](https://medium.com/@higress_ai/comparison-of-data-before-and-after-using-streamable-http-b094db8b414e).
+
 ## 🔍 Monitoring & Debugging
 
 ### Logging
