@@ -367,4 +367,4 @@ CMD ["python", "-m", "postgres_gpt.server4"]
 
 **Built with**: Python 3.10+, FastMCP, LangGraph, Streamlit, asyncpg
 **License**: MIT
-**Maintainers**: CloserStill Team
+
